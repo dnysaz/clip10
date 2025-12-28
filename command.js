@@ -9,11 +9,14 @@ const Commands = {
             case ':help':
                 this.showHelp();
                 return true;
-            case ':show-qrcode':
+            case ':show-qr':
                 this.showQRCode();
                 return true;
             case ':clear':
                 this.clearEditor(editorElement);
+                return true;
+            case ':save':
+                this.downloadNote(editorElement);
                 return true;
             case ':stop-time':
                 this.toggleTimer(false);
@@ -24,6 +27,34 @@ const Commands = {
             default:
                 return false;
         }
+    },
+
+    downloadNote(editor) {
+        const text = editor.innerText;
+        if (!text || text.trim() === "") {
+            alert("Nothing to save! Editor is empty.");
+            return;
+        }
+
+        // Buat file blob
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        
+        // Buat elemen link tersembunyi untuk download
+        const a = document.createElement('a');
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const filename = `clip10-${roomId}-${timestamp}.txt`;
+        
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Bersihkan
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log("File downloaded: " + filename);
     },
 
     // Create a base modal for UI commands
@@ -50,6 +81,10 @@ const Commands = {
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500">:help</span>
                     <span class="text-slate-400">Show this menu</span>
+                </li>
+                <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span class="text-blue-500">:save</span>
+                    <span class="text-slate-400">Download as .txt</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500">:show-qrcode</span>
