@@ -27,7 +27,10 @@ function setupUI() {
 // 1. Render Preview Card (Menggunakan Fragment agar tidak merusak kursor)
 async function renderInlinePreview(url) {
     const cleanUrl = url.trim().replace(/[.,]$/, ""); 
-    if (editor.querySelector(`.inline-preview-card[data-url="${cleanUrl}"]`)) return;
+    const previewContainer = document.getElementById('preview-container'); // Ambil container baru
+    
+    // Cek di container baru agar tidak duplikat
+    if (previewContainer.querySelector(`.inline-preview-card[data-url="${cleanUrl}"]`)) return;
 
     try {
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(cleanUrl)}`);
@@ -35,37 +38,24 @@ async function renderInlinePreview(url) {
         
         if (json.status === 'success' && json.data.image) {
             const data = json.data;
-            
-            // 1. Buat elemen kartu
             const card = document.createElement('div');
             card.className = "inline-preview-card";
             card.setAttribute('data-url', cleanUrl);
-            card.setAttribute('contenteditable', 'false'); // Agar kartu tidak bisa diketik
             
-            // Gunakan template literal yang lebih aman
+            // Render kartu (tidak butuh contenteditable="false" karena sudah di luar editor)
             card.innerHTML = `
-                <img src="${data.image.url}" class="preview-thumb" style="pointer-events: none;">
-                <div class="preview-body" style="pointer-events: none;">
+                <img src="${data.image.url}" class="preview-thumb">
+                <div class="preview-body">
                     <div class="preview-title">${data.title || 'Link Preview'}</div>
                     <div class="preview-desc">${data.description || ''}</div>
                     <div class="preview-site">${new URL(cleanUrl).hostname}</div>
                 </div>`;
 
-            // Tambahkan event click secara terpisah
             card.addEventListener('click', () => window.open(cleanUrl, '_blank'));
             
-            // 2. LOGIKA PENEMPATAN: Masukkan kartu setelah teks, bukan di dalam baris yang sama
-            editor.appendChild(card);
-
-            // 3. Pastikan ada area kosong di bawah agar user bisa klik/ketik lagi
-            let spacer = document.getElementById('editor-spacer');
-            if (!spacer) {
-                spacer = document.createElement('div');
-                spacer.id = 'editor-spacer';
-                spacer.innerHTML = '<br>';
-                editor.appendChild(spacer);
-            }
-
+            // Masukkan ke container terpisah, bukan ke editor
+            previewContainer.appendChild(card);
+            
             saveToDB(); 
         }
     } catch (err) { console.warn(err); }
