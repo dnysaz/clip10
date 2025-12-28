@@ -1,6 +1,5 @@
 /**
- * clip10 - Final Stable Version
- * Fix: Immediate Placeholder, Active Links, & No Cursor Jump
+ * clip10 - Integrated Command & Timer Version
  */
 
 const client = supabase.createClient(CONFIG.STR_URL, CONFIG.STR_KEY);
@@ -14,6 +13,7 @@ let expirationTime = null;
 let isExpired = false;
 let isTyping = false;
 let saveTimeout;
+window.isTimerStopped = false; // Flag untuk command :stop-time
 
 function setupUI() {
     if (!roomId || roomId.length < 5) {
@@ -25,7 +25,6 @@ function setupUI() {
     displayId.innerText = roomId;
 }
 
-// 1. Render Preview Card (Di luar Editor)
 async function renderInlinePreview(url) {
     const cleanUrl = url.trim().replace(/[.,]$/, ""); 
     const previewContainer = document.getElementById('preview-container');
@@ -34,7 +33,6 @@ async function renderInlinePreview(url) {
     try {
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(cleanUrl)}`);
         const json = await response.json();
-        
         if (json.status === 'success' && json.data.image) {
             const data = json.data;
             const card = document.createElement('div');
@@ -53,20 +51,14 @@ async function renderInlinePreview(url) {
     } catch (err) { console.warn("Microlink Error"); }
 }
 
-// 2. Format Link (Paling Stabil)
 function formatLinks(text) {
     if (!text || text.trim() === "") return ""; 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    
-    // Pecah per baris, buat link, lalu gabung kembali dengan <br>
     return text.split('\n').map(line => {
-        return line.replace(urlRegex, url => {
-            return `<a href="${url}" target="_blank" rel="noopener" class="text-blue-500 underline" contenteditable="false">${url}</a>`;
-        });
+        return line.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener" class="text-blue-500 underline" contenteditable="false">${url}</a>`);
     }).join('<br>');
 }
 
-// 3. Fungsi Simpan dengan Pembersihan Preview Otomatis
 async function save() {
     if (isExpired) return;
     setStat("⏳");
@@ -74,20 +66,15 @@ async function save() {
     const plainText = editor.innerText;
     const previewContainer = document.getElementById('preview-container');
 
-    // --- LOGIKA PEMBERSIHAN PREVIEW (Sync Preview dengan Teks) ---
     const matches = plainText.match(/(https?:\/\/[^\s]+)/gi) || [];
     const uniqueUrls = [...new Set(matches.map(u => u.trim().replace(/[.,]$/, "")))];
 
-    // Hapus preview card jika link-nya sudah tidak ada di teks
     const existingCards = previewContainer.querySelectorAll('.inline-preview-card');
     existingCards.forEach(card => {
         const cardUrl = card.getAttribute('data-url');
-        if (!uniqueUrls.includes(cardUrl)) {
-            card.remove(); // Langsung hapus kartu preview jika teks link dihapus
-        }
+        if (!uniqueUrls.includes(cardUrl)) card.remove();
     });
 
-    // Munculkan preview baru jika ada link baru
     uniqueUrls.forEach(url => renderInlinePreview(url));
 
     // --- LIVE COLORING (Link jadi biru instan) ---
@@ -95,12 +82,18 @@ async function save() {
     if (selection.rangeCount > 0 && isTyping) {
         const range = selection.getRangeAt(0);
         const formatted = formatLinks(plainText);
+        
+        // Hanya update jika tampilan berbeda (mencegah kedipan/jump kursor)
         if (editor.innerHTML !== formatted) {
+            // Simpan posisi offset kursor relatif terhadap kontainer
+            const offset = range.startOffset;
+            
             editor.innerHTML = formatted;
-            // Kembalikan kursor ke posisi akhir
+
+            // Kembalikan kursor ke posisi paling akhir (paling aman untuk mobile)
             const newRange = document.createRange();
             newRange.selectNodeContents(editor);
-            newRange.collapse(false);
+            newRange.collapse(false); // false berarti di akhir
             selection.removeAllRanges();
             selection.addRange(newRange);
         }
@@ -114,15 +107,61 @@ async function save() {
 
 // --- EVENT LISTENERS ---
 
+// --- EVENT LISTENERS ---
+
+editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        // Ambil baris terakhir sebelum Enter diproses
+        const lines = editor.innerText.split('\n');
+        const lastLine = lines[lines.length - 1].trim();
+
+        if (lastLine.startsWith(':')) {
+            const isCommand = Commands.execute(lastLine, editor);
+            if (isCommand) {
+                e.preventDefault();
+                
+                // Jika bukan :clear, kita hapus teks command-nya
+                if (lastLine.toLowerCase() !== ':clear') {
+                    const fullText = editor.innerText;
+                    const pos = fullText.lastIndexOf(lastLine);
+                    editor.innerText = fullText.substring(0, pos).trim();
+                }
+                
+                if (editor.innerText.trim() === "") editor.innerHTML = "";
+                return;
+            }
+        }
+        
+        // PENTING: Untuk mencegah kursor melompat ke atas saat ENTER:
+        // Kita kunci isTyping dan jangan panggil save() secara instan
+        isTyping = true;
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            save();
+            setTimeout(() => { isTyping = false; }, 2000);
+        }, 1500); // Beri jeda lebih lama setelah Enter
+    }
+});
+
 editor.addEventListener('input', () => {
     isTyping = true;
     setStat("✍️");
     
-    // Fix Placeholder: Jika kosong, bersihkan semua node agar :empty aktif
     if (editor.innerText.trim() === "") {
         editor.innerHTML = "";
     }
 
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        save();
+        setTimeout(() => { isTyping = false; }, 2000);
+    }, 1000); 
+});
+
+editor.addEventListener('input', () => {
+    isTyping = true;
+    setStat("✍️");
+    if (editor.innerText.trim() === "") editor.innerHTML = "";
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
         save();
@@ -136,46 +175,72 @@ editor.addEventListener('paste', (e) => {
     document.execCommand("insertText", false, text);
 });
 
-// Pastikan link bisa diklik meskipun di dalam contenteditable
 editor.addEventListener('click', (e) => {
-    if (e.target.tagName === 'A') {
-        window.open(e.target.href, '_blank');
-    }
+    if (e.target.tagName === 'A') window.open(e.target.href, '_blank');
 });
 
 // --- SUPABASE & TIMER ---
 
 async function connectData() {
     try {
-        const { data } = await client.from('clipboard').select('content, expires_at').eq('id', roomId).maybeSingle();
+        // Ambil semua kolom termasuk is_permanent
+        const { data } = await client.from('clipboard').select('*').eq('id', roomId).maybeSingle();
         const now = new Date().getTime();
 
         if (data) {
-            const serverExp = new Date(data.expires_at).getTime();
-            if (now > serverExp) { await sesi_hancurkan(); return; }
-            expirationTime = serverExp;
+            // SET STATUS PERMANEN DARI DB
+            window.isTimerStopped = data.is_permanent || false;
             
+            const serverExp = new Date(data.expires_at).getTime();
+            
+            // Cek kadaluwarsa HANYA jika TIDAK permanen
+            if (!window.isTimerStopped && now > serverExp) { 
+                await sesi_hancurkan(); 
+                return; 
+            }
+            
+            expirationTime = serverExp;
             const content = data.content || "";
-            // Jika konten ada, format jadi link, jika tidak, kosongkan total demi placeholder
             editor.innerHTML = (content.trim() !== "") ? formatLinks(content) : "";
         } else {
+            // Room Baru
             expirationTime = now + (10 * 60 * 1000);
             await client.from('clipboard').upsert({ 
-                id: roomId, content: "", expires_at: new Date(expirationTime).toISOString() 
+                id: roomId, 
+                content: "", 
+                expires_at: new Date(expirationTime).toISOString(),
+                is_permanent: false // Default false
             });
-            editor.innerHTML = ""; // Pastikan kosong saat room baru
         }
         startTimer();
         subscribeRealtime();
     } catch (err) { console.error("Connection Error"); }
 }
 
+
 function startTimer() {
-    const interval = setInterval(() => {
+    if (window.timerInterval) clearInterval(window.timerInterval);
+    
+    window.timerInterval = setInterval(() => {
+        const display = document.getElementById('timer');
+        
+        // JIKA STATUS PERMANEN: Hentikan hitung mundur & ganti teks
+        if (window.isTimerStopped) {
+            display.innerText = "∞ INFINITY";
+            display.style.color = "#10b981";
+            return; 
+        }
+
         const dist = expirationTime - new Date().getTime();
-        if (dist <= 0) { clearInterval(interval); sesi_hancurkan(); return; }
+        if (dist <= 0) { 
+            clearInterval(window.timerInterval); 
+            sesi_hancurkan(); 
+            return; 
+        }
+        
+        display.style.color = "#3b82f6";
         const m = Math.floor(dist / 60000), s = Math.floor((dist % 60000) / 1000);
-        timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        display.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }, 1000);
 }
 
@@ -210,23 +275,14 @@ function setStat(emoji) {
     if (emoji === "✅") setTimeout(() => { indicator.style.opacity = "0.3"; indicator.innerText = "⏎"; }, 1500);
 }
 
-// --- DETEKSI PERUBAHAN ID (HASH) SECARA OTOMATIS ---
-
 window.addEventListener('hashchange', () => {
-    // 1. Ambil ID baru dari URL
     const newRoomId = decodeURIComponent(location.hash.slice(1));
-    
-    // 2. Jika ID benar-benar berubah dan valid, muat ulang data
     if (newRoomId && newRoomId !== roomId) {
         roomId = newRoomId;
         displayId.innerText = roomId;
-        
-        // Bersihkan tampilan lama sebelum muat yang baru
         editor.innerHTML = "";
-        const previewContainer = document.getElementById('preview-container');
-        if (previewContainer) previewContainer.innerHTML = "";
-        
-        // Hubungkan ulang ke database dengan ID baru
+        const pc = document.getElementById('preview-container');
+        if (pc) pc.innerHTML = "";
         connectData();
     }
 });

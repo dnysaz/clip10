@@ -25,6 +25,7 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <style>
         [contenteditable]:focus { outline: none; }
         #editor:empty:before { content: attr(placeholder); color: #64748b; }
@@ -50,6 +51,16 @@
         .dark .preview-title { color: #adbac7; }
         .preview-desc { font-size: 14px; color: #64748b; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         .preview-site { font-size: 12px; color: #3b82f6; margin-top: 4px; font-weight: bold; text-transform: uppercase; }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes scale-up {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in { animation: fade-in 0.2s ease-out; }
+        .animate-scale-up { animation: scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
     </style>
 </head>
 <body class="bg-white dark:bg-[#0d1117] text-slate-900 dark:text-slate-100 font-sans antialiased">
@@ -80,6 +91,7 @@
         <div id="preview-container" class="mt-6 border-t border-slate-100 dark:border-slate-800 pt-4"></div>
     </main>
     <script src="config.js"></script>
+    <script src="command.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
