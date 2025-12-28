@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  
+  <title>Clip10 | Secure 10-Minute Temporary Clipboard</title>
+  <meta name="title" content="Clip10 | Secure 10-Minute Temporary Clipboard">
+  <meta name="description" content="Share links and notes instantly across devices. All data is permanently purged after 10 minutes of inactivity. Zero logs, total privacy.">
+  <meta name="keywords" content="temporary clipboard, secure text sharing, 10 minute clip, vanish text, private link sharing, clip10">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
+  <meta name="author" content="Clip10">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://clip10.vercel.app/"> <meta property="og:title" content="Clip10 | Drop, Sync, Vanish.">
+  <meta property="og:description" content="The simplest way to sync text across devices. Self-destructs in 10 minutes.">
+  <meta property="og:image" content="https://clip10.vercel.app/og-image.png"> <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://clip10.vercel.app/">
+  <meta property="twitter:title" content="Clip10 | 10-Minute Secure Clipboard">
+  <meta property="twitter:description" content="Drop links or notes and sync them instantly. Secure, temporary, and private.">
+  <meta property="twitter:image" content="https://clip10.vercel.app/og-image.png">
+
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        [contenteditable]:focus { outline: none; }
+        #editor:empty:before { content: attr(placeholder); color: #64748b; }
+        
+        #editor a { 
+            color: #3b82f6 !important; 
+            text-decoration: underline !important; 
+            cursor: pointer !important;
+        }
+
+        .inline-preview-card {
+            display: flex; max-width: 100%; background: #f8fafc;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            overflow: hidden; margin: 10px 0; cursor: pointer !important;
+            user-select: none; contenteditable: false; line-height: normal;
+        }
+        .inline-preview-card:hover { background: #f1f5f9; }
+        .dark .inline-preview-card { background: #1c2128; border-color: #30363d; }
+
+        .preview-thumb { width: 220px; min-width: 90px; height: 140px; object-fit: cover; }
+        .preview-body { padding: 10px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+        .preview-title { font-weight: bold; font-size: 16px; color: #1e293b; margin-bottom: 2px; }
+        .dark .preview-title { color: #adbac7; }
+        .preview-desc { font-size: 14px; color: #64748b; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .preview-site { font-size: 12px; color: #3b82f6; margin-top: 4px; font-weight: bold; text-transform: uppercase; }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#0d1117] text-slate-900 dark:text-slate-100 font-sans antialiased">
+    <header class="sticky top-0 z-20 bg-white/80 dark:bg-[#0d1117]/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
+      <div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1">
+                  <span class="font-black text-2xl tracking-tighter text-slate-900 dark:text-white">Clip<span class="text-blue-500">10</span></span>
+              </div>
+              <span id="indicator" class="text-sm transition-all opacity-50 ml-2">⏎</span>
+          </div>
+          
+          <div class="flex items-center gap-4">
+              <span id="display-id" class="font-mono font-semibold text-[15px] tracking-widest text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded uppercase">
+                  ----
+              </span>
+              <div id="timer" class="font-mono font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full text-sm">
+                  10:00
+              </div>
+          </div>
+      </div>
+    </header>
+    <main class="max-w-3xl mx-auto p-4 md:p-8">
+        <article id="editor" contenteditable="true" spellcheck="false" placeholder="Start typing..." class="w-full min-h-[80vh] text-lg md:text-xl leading-relaxed bg-transparent break-words whitespace-pre-wrap"></article>
+    </main>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
