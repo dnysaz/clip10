@@ -36,27 +36,35 @@ async function renderInlinePreview(url) {
         if (json.status === 'success' && json.data.image) {
             const data = json.data;
             
-            // Buat elemen kartu
+            // 1. Buat elemen kartu
             const card = document.createElement('div');
             card.className = "inline-preview-card";
             card.setAttribute('data-url', cleanUrl);
-            card.setAttribute('contenteditable', 'false');
-            card.onclick = (e) => { e.stopPropagation(); window.open(cleanUrl, '_blank'); };
+            card.setAttribute('contenteditable', 'false'); // Agar kartu tidak bisa diketik
+            
+            // Gunakan template literal yang lebih aman
             card.innerHTML = `
-                <img src="${data.image.url}" class="preview-thumb">
-                <div class="preview-body">
+                <img src="${data.image.url}" class="preview-thumb" style="pointer-events: none;">
+                <div class="preview-body" style="pointer-events: none;">
                     <div class="preview-title">${data.title || 'Link Preview'}</div>
                     <div class="preview-desc">${data.description || ''}</div>
                     <div class="preview-site">${new URL(cleanUrl).hostname}</div>
                 </div>`;
+
+            // Tambahkan event click secara terpisah
+            card.addEventListener('click', () => window.open(cleanUrl, '_blank'));
             
-            // Sisipkan kartu di paling bawah editor secara aman
+            // 2. LOGIKA PENEMPATAN: Masukkan kartu setelah teks, bukan di dalam baris yang sama
             editor.appendChild(card);
-            
-            // Tambahkan baris baru murni di bawahnya agar Enter tidak error
-            const lineBreak = document.createElement('div');
-            lineBreak.innerHTML = '<br>';
-            editor.appendChild(lineBreak);
+
+            // 3. Pastikan ada area kosong di bawah agar user bisa klik/ketik lagi
+            let spacer = document.getElementById('editor-spacer');
+            if (!spacer) {
+                spacer = document.createElement('div');
+                spacer.id = 'editor-spacer';
+                spacer.innerHTML = '<br>';
+                editor.appendChild(spacer);
+            }
 
             saveToDB(); 
         }
