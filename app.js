@@ -53,9 +53,24 @@ async function renderInlinePreview(url) {
 
 function formatLinks(text) {
     if (!text || text.trim() === "") return ""; 
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+    // Regex baru: Mencari yang diawali http ATAU yang punya format domain (misal google.com)
+    const urlRegex = /((https?:\/\/)[^\s]+|(?<![\w])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2,})?[^\s]*)/gi;
+    
     return text.split('\n').map(line => {
-        return line.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener" class="text-blue-500 underline" contenteditable="false">${url}</a>`);
+        return line.replace(urlRegex, (url) => {
+            // Cek apakah link punya protokol http/https
+            let href = url;
+            if (!/^https?:\/\//i.test(url)) {
+                href = 'https://' + url; // Tambahkan https:// otomatis agar bisa diklik
+            }
+            
+            // Bersihkan titik atau koma di akhir link jika ada (biasanya karena tanda baca kalimat)
+            href = href.replace(/[.,]$/, "");
+            const displayUrl = url.replace(/[.,]$/, "");
+
+            return `<a href="${href}" target="_blank" rel="noopener" class="text-blue-500 underline" contenteditable="false">${displayUrl}</a>`;
+        });
     }).join('<br>');
 }
 
@@ -66,8 +81,12 @@ async function save() {
     const plainText = editor.innerText;
     const previewContainer = document.getElementById('preview-container');
 
-    const matches = plainText.match(/(https?:\/\/[^\s]+)/gi) || [];
-    const uniqueUrls = [...new Set(matches.map(u => u.trim().replace(/[.,]$/, "")))];
+    const matches = plainText.match(/((https?:\/\/)[^\s]+|(?<![\w])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2,})?[^\s]*)/gi) || [];
+    const uniqueUrls = [...new Set(matches.map(url => {
+        let clean = url.trim().replace(/[.,]$/, "");
+        // Tambahkan protokol jika tidak ada agar API preview tidak error
+        return /^https?:\/\//i.test(clean) ? clean : 'https://' + clean;
+    }))];
 
     const existingCards = previewContainer.querySelectorAll('.inline-preview-card');
     existingCards.forEach(card => {
