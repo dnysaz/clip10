@@ -1,49 +1,71 @@
 # ⚡ CLIP10 PROJECT DOCUMENTATION
-> **Secure, Real-time, and Ephemeral Sharing**
+> **Secure, Real-time, and Ephemeral Sharing with Command-Line Power**
 
 ---
 
 ## 1. BRAND IDENTITY
 
 * **Name:** Clip10
-* **Core Concept:** A secure workspace to drop links and notes that vanish in 10 minutes.
-* **Value Proposition:** Zero friction, zero logs, total privacy.
+* **Core Concept:** A secure workspace to drop links and notes that vanish in 10 minutes or stay forever.
+* **Value Proposition:** Instant sync, zero friction, and powerful terminal-style commands.
 
 ---
 
 ## 2. TECHNICAL SPECIFICATIONS
 
-* **Frontend:** Built with **HTML5** and **Tailwind CSS** for a modern, responsive UI.
-* **Real-time Engine:** Powered by **Supabase** for instant cross-device synchronization.
-* **Link Enrichment:** Integrated with **Microlink API** to generate visual cards for shared URLs.
-* **Auto-Destruction:** Custom JavaScript logic to purge data from the database after a 10-minute countdown.
+* **Frontend:** HTML5, Tailwind CSS (Modern & Dark Mode support).
+* **Real-time Engine:** Supabase (PostgreSQL & Realtime Channels).
+* **Link Engine:** Custom Regex for **Domain Detection**.
+* **Rich Media:** Microlink API for visual link previews.
+* **Command Processor:** Custom JS Engine to intercept and execute in-editor commands.
+* **QR Generator:** `qrcode.js` for instant cross-device handoff.
 
 ---
 
-## 3. SYSTEM REQUIREMENTS
+## 3. FEATURE SET (NEW)
 
-* Supabase Account (Database & Realtime enabled).
-* Web Browser (Chrome, Safari, or Firefox).
-* Internet Connection.
+* **Smart Link Detection:** Automatically converts `google.com` or `https://google.com` into clickable blue links.
+* **Live Preview:** Visual cards for URLs that appear/disappear in real-time as you edit.
+* **Lifetime Mode:** Ability to freeze the timer and prevent data deletion.
+* **Local Export:** Download editor content directly as a `.txt` file.
 
 ---
 
-## 4. PROJECT STRUCTURE
+## 4. COMMAND-LINE INTERFACE (CLI)
+
+Type these commands in the editor and press **Enter** to execute:
+
+| Command | Action | Description |
+| :--- | :--- | :--- |
+| `:help` | **Open UI Menu** | Displays the English command reference modal. |
+| `:show-qr` | **Share Link** | Generates a QR Code modal for the current session. |
+| `:save` | **Download** | Exports the current text as a `.txt` file. |
+| `:clear` | **Wipe Data** | Deletes all text in the editor and syncs with DB. |
+| `:stop-time` | **Freeze Timer** | Activates **∞ INFINITY** mode (Saved to DB). |
+| `:start-time` | **Resume Timer** | Restores the 10-minute countdown logic. |
+
+---
+
+## 5. PROJECT STRUCTURE
 
 | File | Description |
 | :--- | :--- |
-| `index.html` | The main user interface and SEO-optimized metadata. |
-| `app.js` | Core logic for syncing, timer management, and link previews. |
-| `config.js` | Storage for API credentials. |
-| `README.md` | Documentation for GitHub. |
+| `index.html` | UI structure, SEO, and Modal animation styles. |
+| `command.js` | Logic for CLI, Modal UI, and File Download. |
+| `app.js` | Core engine: Supabase sync, Smart Link coloring, and Timer. |
+| `config.js` | API Keys and Environment Variables. |
 
 ---
 
-## 5. FUTURE ROADMAP
+## 6. DATABASE SCHEMA (Supabase)
 
-1.  **Burn on Read:** Implementation of a feature where data deletes immediately after being viewed.
-2.  **End-to-End Encryption:** Enhanced security for sensitive text data.
-3.  **PWA Support:** Progressive Web App for mobile installation.
+**Table:** `clipboard`
+
+* `id` (text, primary key)
+* `content` (text)
+* `expires_at` (timestamptz)
+* **`is_permanent`** (bool, default: `false`) — *New Column for Lifetime mode.*
 
 ---
-*Built with passion for privacy.*
+
+*Built with passion for privacy and efficiency.*
