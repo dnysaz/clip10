@@ -87,7 +87,7 @@ const Commands = {
                     <span class="text-slate-400">Download as .txt</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:show-qrcode</span>
+                    <span class="text-blue-500">:show-qr</span>
                     <span class="text-slate-400">Share via QR Code</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
