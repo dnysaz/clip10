@@ -71,30 +71,38 @@ const Commands = {
 
     showHelp() {
         const helpHTML = `
-            <h2 class="text-xl font-black mb-4 text-slate-900 dark:text-white uppercase italic">Manual Book</h2>
+            <h2 class="text-xl font-black mb-4 text-slate-900 dark:text-white uppercase italic">Help Menu</h2>
             <ul class="space-y-3 text-sm font-mono">
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:help</span>
-                    <span class="text-slate-400">Show this menu</span>
+                    <span class="text-slate-400">Show help menu</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:image</span>
-                    <span class="text-slate-400">Upload Media</span>
+                    <span class="text-slate-400">Upload & Share Image</span>
+                </li>
+                <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span class="text-blue-500 font-bold">:show-qr</span>
+                    <span class="text-slate-400">Display QR Code</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:save</span>
-                    <span class="text-slate-400">Download .txt</span>
+                    <span class="text-slate-400">Download as .txt</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:stop-time</span>
-                    <span class="text-slate-400">No expiration</span>
+                    <span class="text-slate-400">Permanent mode</span>
+                </li>
+                <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span class="text-blue-500 font-bold">:start-time</span>
+                    <span class="text-slate-400">Activate 10m timer</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:clear</span>
-                    <span class="text-slate-400">Nuke everything</span>
+                    <span class="text-slate-400">Wipe all content</span>
                 </li>
             </ul>
-            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-blue-500 text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-600 transition-colors">Got it</button>
+            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-slate-900 dark:bg-white dark:text-black text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-600 transition-colors">Got it</button>
         `;
         this.createModal('help-modal', helpHTML);
     },
