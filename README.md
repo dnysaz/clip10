@@ -6,7 +6,7 @@
 ## 1. BRAND IDENTITY
 
 * **Name:** Clip10
-* **Core Concept:** A secure workspace to drop links and notes that vanish in 10 minutes or stay forever.
+* **Core Concept:** A secure workspace to drop links, notes and images that vanish in 10 minutes or stay forever.
 * **Value Proposition:** Instant sync, zero friction, and powerful terminal-style commands.
 
 ---
@@ -39,6 +39,7 @@ Type these commands in the editor and press **Enter** to execute:
 | :--- | :--- | :--- |
 | `:help` | **Open UI Menu** | Displays the English command reference modal. |
 | `:show-qr` | **Share Link** | Generates a QR Code modal for the current session. |
+| `:image` | **Share Image** | Upload images to the content. |
 | `:save` | **Download** | Exports the current text as a `.txt` file. |
 | `:clear` | **Wipe Data** | Deletes all text in the editor and syncs with DB. |
 | `:stop-time` | **Freeze Timer** | Activates **∞ INFINITY** mode (Saved to DB). |
