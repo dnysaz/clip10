@@ -1,5 +1,6 @@
 // config.js
 const CONFIG = {
     STR_URL: "https://fyhczyxdeoafqicciurj.supabase.co",
-    STR_KEY: "sb_publishable_rEtEiuveMbzDLIM7TilTRQ_6SvLH4sf"
+    STR_KEY: "sb_publishable_rEtEiuveMbzDLIM7TilTRQ_6SvLH4sf",
+    API_KEY: "AIzaSyB_grjqoftL631wBOPPKT75IT1zeWfRXfw"
 };

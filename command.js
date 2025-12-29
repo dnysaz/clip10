@@ -2,8 +2,12 @@
  * command.js - Clip10 Advanced Command System (Synced & Optimized)
  */
 const Commands = {
-    execute(cmd, editorElement) {
-        const cleanCmd = cmd.toLowerCase().trim();
+    // TAMBAHKAN 'async' di depan execute
+    async execute(cmd, editorElement) {
+        // Pisahkan perintah dan argumen (teks setelah :ai)
+        const parts = cmd.split(' ');
+        const cleanCmd = parts[0].toLowerCase().trim();
+        const args = parts.slice(1);
 
         switch (cleanCmd) {
             case ':help':
@@ -27,6 +31,41 @@ const Commands = {
             case ':image':
                 this.uploadImage(editorElement);
                 return true;
+
+            case ':ai':
+                const userPrompt = args.join(' '); 
+                
+                if (!userPrompt) {
+                    alert("Contoh pemakaian: :ai buatkan kode python sederhana");
+                    return true; // return true agar tidak dianggap teks biasa
+                }
+
+                window.setStat("🤖");
+                
+                // Panggil fungsi callGemini (pakai this. karena ada di dalam object Commands)
+                const result = await this.callGemini(userPrompt);
+                
+                const formattedResult = typeof formatLinks === 'function' ? formatLinks(result) : result;
+
+                const aiHtml = `
+                    <div class="my-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-r-xl shadow-sm select-none" contenteditable="false">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[10px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded">GEMINI AI</span>
+                            <span class="text-[9px] text-blue-400 font-mono italic">Responding to: "${userPrompt.substring(0, 20)}..."</span>
+                        </div>
+                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">${formattedResult}</div>
+                    </div>
+                    <br>&#8203;
+                `;
+
+                // Hapus teks perintah :ai dari editor sebelum memasukkan jawaban
+                editorElement.innerHTML = editorElement.innerHTML.replace(/:ai/gi, '').trim();
+                editorElement.insertAdjacentHTML('beforeend', aiHtml);
+                
+                window.setStat("✅");
+                if (window.save) window.save(); 
+                return true;
+
             default:
                 return false;
         }
@@ -96,6 +135,10 @@ const Commands = {
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:start-time</span>
                     <span class="text-slate-400">Activate 10m timer</span>
+                </li>
+                <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span class="text-blue-500 font-bold">:ai [ask]</span>
+                    <span class="text-slate-400">Ask Gemini AI</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span class="text-blue-500 font-bold">:clear</span>
@@ -189,5 +232,31 @@ const Commands = {
             }
         };
         input.click();
+    },
+
+    async callGemini(prompt) {
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: prompt, 
+                    key: CONFIG.API_KEY 
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates[0].content) {
+                return data.candidates[0].content.parts[0].text;
+            } else if (data.error) {
+                return `❌ AI Error: ${data.error.message}`;
+            }
+            return "❌ Gagal mendapatkan respon.";
+        } catch (error) {
+            console.error(error);
+            return `❌ Bridge Error: Pastikan sudah di-deploy ke Vercel.`;
+        }
     }
+
 };
