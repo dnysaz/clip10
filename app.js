@@ -1,191 +1,203 @@
 /**
- * clip10 - Integrated Command & Timer Version
+ * clip10 - Stable Link Version
  */
 
-const client = supabase.createClient(CONFIG.STR_URL, CONFIG.STR_KEY);
+// Global Init
+window.client = supabase.createClient(CONFIG.STR_URL, CONFIG.STR_KEY);
 const editor = document.getElementById('editor');
 const timerDisplay = document.getElementById('timer');
 const displayId = document.getElementById('display-id');
 const indicator = document.getElementById('indicator');
 
-let roomId = decodeURIComponent(location.hash.slice(1));
+window.roomId = decodeURIComponent(location.hash.slice(1)); 
 let expirationTime = null;
 let isExpired = false;
 let isTyping = false;
 let saveTimeout;
-window.isTimerStopped = false; // Flag untuk command :stop-time
+window.isTimerStopped = false; 
 
 function setupUI() {
-    if (!roomId || roomId.length < 5) {
+    if (!window.roomId || window.roomId.length < 5) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        roomId = '';
-        for (let i = 0; i < 5; i++) roomId += chars.charAt(Math.floor(Math.random() * chars.length));
-        location.hash = encodeURIComponent(roomId);
+        window.roomId = '';
+        for (let i = 0; i < 5; i++) window.roomId += chars.charAt(Math.floor(Math.random() * chars.length));
+        location.hash = encodeURIComponent(window.roomId);
     }
-    displayId.innerText = roomId;
+    displayId.innerText = window.roomId;
+    if (editor.innerText.trim() === "") editor.innerHTML = "";
 }
 
-async function renderInlinePreview(url) {
-    const cleanUrl = url.trim().replace(/[.,]$/, ""); 
-    const previewContainer = document.getElementById('preview-container');
-    if (!previewContainer || previewContainer.querySelector(`.inline-preview-card[data-url="${cleanUrl}"]`)) return;
+window.moveCursorToEnd = function(el) {
+    el.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+};
 
+// --- PREVIEW SYSTEM ---
+async function renderInlinePreview(url) {
+    let cleanUrl = url.trim().replace(/[.,]$/, ""); 
+    
+    // Jika user ketik youtube.com, ubah jadi https://youtube.com untuk API & Image check
+    if (!cleanUrl.startsWith('http')) {
+        cleanUrl = 'https://' + cleanUrl;
+    }
+    
+    const previewContainer = document.getElementById('preview-container');
+    if (!previewContainer) return;
+    if (previewContainer.querySelector(`[data-url="${cleanUrl}"]`)) return;
+
+    // Cek apakah itu link gambar (Supabase atau format gambar umum)
+    const isImage = /\.(jpeg|jpg|png|gif|webp|svg|avif)(\?.*)?$/i.test(cleanUrl) || 
+                    cleanUrl.includes('supabase.co/storage/v1/object/public');
+
+    if (isImage) {
+        const card = document.createElement('div');
+        card.className = "inline-preview-card animate-fade-in";
+        card.setAttribute('data-url', cleanUrl);
+        card.innerHTML = `
+            <div class="preview-thumb-img flex items-center justify-center bg-slate-100 dark:bg-slate-800 p-2">
+                <img src="${cleanUrl}" class="max-h-[120px] rounded object-contain shadow-sm">
+            </div>
+            <div class="preview-body">
+                <div class="preview-title text-blue-500 font-bold italic text-sm">Image Attached</div>
+                <div class="preview-site text-[10px] opacity-50 uppercase tracking-widest">${new URL(cleanUrl).hostname}</div>
+            </div>`;
+        card.onclick = () => window.open(cleanUrl, '_blank');
+        previewContainer.appendChild(card);
+        return; 
+    }
+
+    // Untuk link umum (YouTube, dll)
     try {
         const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(cleanUrl)}`);
         const json = await response.json();
-        if (json.status === 'success' && json.data.image) {
+        if (json.status === 'success') {
             const data = json.data;
             const card = document.createElement('div');
             card.className = "inline-preview-card animate-fade-in";
-            card.setAttribute('data-url', cleanUrl);
+            card.setAttribute('data-url', cleanUrl); // Gunakan URL yang sudah ada https
+            const thumb = data.image ? data.image.url : '';
             card.innerHTML = `
-                <img src="${data.image.url}" class="preview-thumb">
+                ${thumb ? `<img src="${thumb}" class="preview-thumb">` : `<div class="w-[220px] min-w-[90px] bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-400 font-mono">LINK</div>`}
                 <div class="preview-body">
-                    <div class="preview-title">${data.title || 'Link Preview'}</div>
-                    <div class="preview-desc">${data.description || ''}</div>
-                    <div class="preview-site">${new URL(cleanUrl).hostname}</div>
+                    <div class="preview-title text-sm font-bold">${data.title || 'Link Preview'}</div>
+                    <div class="preview-desc text-xs opacity-70">${data.description || 'No description available.'}</div>
+                    <div class="preview-site text-[10px]">${new URL(cleanUrl).hostname}</div>
                 </div>`;
             card.onclick = () => window.open(cleanUrl, '_blank');
             previewContainer.appendChild(card);
         }
-    } catch (err) { console.warn("Microlink Error"); }
+    } catch (err) { console.warn("Microlink skipped."); }
 }
 
+// --- FORMATTING (LINK SAJA) ---
 function formatLinks(text) {
     if (!text || text.trim() === "") return ""; 
-
-    // Regex baru: Mencari yang diawali http ATAU yang punya format domain (misal google.com)
-    const urlRegex = /((https?:\/\/)[^\s]+|(?<![\w])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2,})?[^\s]*)/gi;
     
-    return text.split('\n').map(line => {
+    // Regex: Mencari https:// ATAU kata yang punya akhiran domain populer
+    const urlRegex = /((https?:\/\/)[^\s\n\r]+)|([a-zA-Z0-9][a-zA-Z0-9-]+\.(com|net|org|id|co.id|io|me|xyz|site|my|edu|gov)(\/[^\s\n\r]*)?)/gi;
+    
+    const lines = text.split('\n');
+    return lines.map(line => {
+        if (!line.trim()) return "";
         return line.replace(urlRegex, (url) => {
-            // Cek apakah link punya protokol http/https
-            let href = url;
-            if (!/^https?:\/\//i.test(url)) {
-                href = 'https://' + url; // Tambahkan https:// otomatis agar bisa diklik
-            }
+            let href = url.trim().replace(/[.,;]$/, "");
+            let fullLink = href;
             
-            // Bersihkan titik atau koma di akhir link jika ada (biasanya karena tanda baca kalimat)
-            href = href.replace(/[.,]$/, "");
-            const displayUrl = url.replace(/[.,]$/, "");
+            // Tambahkan https:// secara otomatis jika tidak ada
+            if (!href.match(/^https?:\/\//i)) {
+                fullLink = 'https://' + href;
+            }
 
-            return `<a href="${href}" target="_blank" rel="noopener" class="text-blue-500 underline" contenteditable="false">${displayUrl}</a>`;
+            return `<a href="${fullLink}" target="_blank" rel="noopener" class="text-blue-500 underline break-all font-bold" contenteditable="false">${href}</a>`;
         });
     }).join('<br>');
 }
-
-async function save() {
+// --- CORE SAVE SYSTEM ---
+window.save = async function save() {
     if (isExpired) return;
-    setStat("⏳");
+    window.setStat("⏳");
 
-    const plainText = editor.innerText;
-    const previewContainer = document.getElementById('preview-container');
-
-    const matches = plainText.match(/((https?:\/\/)[^\s]+|(?<![\w])[\w-]+\.[a-z]{2,}(?:\.[a-z]{2,})?[^\s]*)/gi) || [];
-    const uniqueUrls = [...new Set(matches.map(url => {
-        let clean = url.trim().replace(/[.,]$/, "");
-        // Tambahkan protokol jika tidak ada agar API preview tidak error
-        return /^https?:\/\//i.test(clean) ? clean : 'https://' + clean;
-    }))];
-
-    const existingCards = previewContainer.querySelectorAll('.inline-preview-card');
-    existingCards.forEach(card => {
-        const cardUrl = card.getAttribute('data-url');
-        if (!uniqueUrls.includes(cardUrl)) card.remove();
+    // Gunakan innerText untuk data mentah ke database
+    const plainText = editor.innerText; 
+    
+    // EKSTRAK URL: Cari semua link potensial (termasuk yang belum jadi <a>)
+    const urlRegex = /((https?:\/\/)[^\s\n\r]+)|([a-zA-Z0-9][a-zA-Z0-9-]+\.(com|net|org|co.id|id|io|me|xyz|site|my|edu|gov)(\/[^\s\n\r]*)?)/gi;
+    const matches = plainText.match(urlRegex) || [];
+    
+    // Bersihkan URL (tambahkan https jika perlu)
+    const allUrls = [...new Set(matches)].map(url => {
+        let u = url.trim().replace(/[.,;]$/, "");
+        return u.match(/^https?:\/\//i) ? u : 'https://' + u;
     });
 
-    uniqueUrls.forEach(url => renderInlinePreview(url));
+    // Update Kartu Preview
+    const previewContainer = document.getElementById('preview-container');
+    const existingCards = previewContainer.querySelectorAll('.inline-preview-card');
+    
+    // Hapus kartu yang link-nya sudah tidak ada di editor
+    existingCards.forEach(card => {
+        if (!allUrls.includes(card.getAttribute('data-url'))) card.remove();
+    });
 
-    // --- LIVE COLORING (Link jadi biru instan) ---
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0 && isTyping) {
-        const range = selection.getRangeAt(0);
-        const formatted = formatLinks(plainText);
-        
-        // Hanya update jika tampilan berbeda (mencegah kedipan/jump kursor)
-        if (editor.innerHTML !== formatted) {
-            // Simpan posisi offset kursor relatif terhadap kontainer
-            const offset = range.startOffset;
-            
-            editor.innerHTML = formatted;
-
-            // Kembalikan kursor ke posisi paling akhir (paling aman untuk mobile)
-            const newRange = document.createRange();
-            newRange.selectNodeContents(editor);
-            newRange.collapse(false); // false berarti di akhir
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-        }
-    }
+    // Render kartu baru
+    allUrls.forEach(url => renderInlinePreview(url));
 
     try {
-        await client.from('clipboard').upsert({ id: roomId, content: plainText });
-        setStat("✅");
-    } catch (err) { setStat("❌"); }
+        await window.client.from('clipboard').upsert({ id: window.roomId, content: plainText });
+        window.setStat("✅");
+    } catch (err) { window.setStat("❌"); }
 }
-
-// --- EVENT LISTENERS ---
-
-// --- EVENT LISTENERS ---
-
+// --- LISTENERS ---
 editor.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        // Ambil baris terakhir sebelum Enter diproses
         const lines = editor.innerText.split('\n');
         const lastLine = lines[lines.length - 1].trim();
-
         if (lastLine.startsWith(':')) {
             const isCommand = Commands.execute(lastLine, editor);
-            if (isCommand) {
-                e.preventDefault();
-                
-                // Jika bukan :clear, kita hapus teks command-nya
-                if (lastLine.toLowerCase() !== ':clear') {
-                    const fullText = editor.innerText;
-                    const pos = fullText.lastIndexOf(lastLine);
-                    editor.innerText = fullText.substring(0, pos).trim();
+            if (isCommand) { e.preventDefault(); return; }
+        }
+    }
+});
+
+editor.addEventListener('keyup', (e) => {
+    // Jika menekan spasi (32) atau Enter (13)
+    if (e.keyCode === 32 || e.keyCode === 13) {
+        const plainText = editor.innerText;
+        const urlRegex = /(https?:\/\/[^\s\n\r]+)/gi;
+        
+        // Jika ada URL di baris tersebut
+        if (urlRegex.test(plainText)) {
+            const currentHTML = editor.innerHTML;
+            const newHTML = formatLinks(plainText);
+            
+            if (currentHTML !== newHTML) {
+                // Simpan posisi kursor sebelum update
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    // Update editor
+                    editor.innerHTML = newHTML;
+                    // Paksa kursor ke paling akhir setelah link terbentuk
+                    window.moveCursorToEnd(editor);
                 }
-                
-                if (editor.innerText.trim() === "") editor.innerHTML = "";
-                return;
             }
         }
-        
-        // PENTING: Untuk mencegah kursor melompat ke atas saat ENTER:
-        // Kita kunci isTyping dan jangan panggil save() secara instan
-        isTyping = true;
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            save();
-            setTimeout(() => { isTyping = false; }, 2000);
-        }, 1500); // Beri jeda lebih lama setelah Enter
     }
 });
 
 editor.addEventListener('input', () => {
     isTyping = true;
-    setStat("✍️");
-    
-    if (editor.innerText.trim() === "") {
-        editor.innerHTML = "";
-    }
-
+    window.setStat("✍️");
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-        save();
-        setTimeout(() => { isTyping = false; }, 2000);
+        window.save();
+        isTyping = false;
     }, 1000); 
-});
-
-editor.addEventListener('input', () => {
-    isTyping = true;
-    setStat("✍️");
-    if (editor.innerText.trim() === "") editor.innerHTML = "";
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        save();
-        setTimeout(() => { isTyping = false; }, 2000);
-    }, 800); 
 });
 
 editor.addEventListener('paste', (e) => {
@@ -195,82 +207,67 @@ editor.addEventListener('paste', (e) => {
 });
 
 editor.addEventListener('click', (e) => {
-    if (e.target.tagName === 'A') window.open(e.target.href, '_blank');
+    const link = e.target.closest('a');
+    if (link) {
+        e.preventDefault();
+        window.open(link.href, '_blank');
+    }
 });
 
-// --- SUPABASE & TIMER ---
-
+// --- DATA HANDLING ---
 async function connectData() {
     try {
-        // Ambil semua kolom termasuk is_permanent
-        const { data } = await client.from('clipboard').select('*').eq('id', roomId).maybeSingle();
+        const { data } = await window.client.from('clipboard').select('*').eq('id', window.roomId).maybeSingle();
         const now = new Date().getTime();
 
         if (data) {
-            // SET STATUS PERMANEN DARI DB
             window.isTimerStopped = data.is_permanent || false;
-            
             const serverExp = new Date(data.expires_at).getTime();
-            
-            // Cek kadaluwarsa HANYA jika TIDAK permanen
-            if (!window.isTimerStopped && now > serverExp) { 
-                await sesi_hancurkan(); 
-                return; 
-            }
+            if (!window.isTimerStopped && now > serverExp) { await sesi_hancurkan(); return; }
             
             expirationTime = serverExp;
             const content = data.content || "";
-            editor.innerHTML = (content.trim() !== "") ? formatLinks(content) : "";
+            
+            if (content.trim() !== "") {
+                editor.innerHTML = formatLinks(content);
+                setTimeout(() => { window.save(); }, 300);
+            }
         } else {
-            // Room Baru
             expirationTime = now + (10 * 60 * 1000);
-            await client.from('clipboard').upsert({ 
-                id: roomId, 
-                content: "", 
-                expires_at: new Date(expirationTime).toISOString(),
-                is_permanent: false // Default false
+            await window.client.from('clipboard').upsert({ 
+                id: window.roomId, content: "", expires_at: new Date(expirationTime).toISOString(), is_permanent: false
             });
         }
         startTimer();
         subscribeRealtime();
-    } catch (err) { console.error("Connection Error"); }
+    } catch (err) { console.error("Sync Error"); }
 }
-
 
 function startTimer() {
     if (window.timerInterval) clearInterval(window.timerInterval);
-    
     window.timerInterval = setInterval(() => {
-        const display = document.getElementById('timer');
-        
-        // JIKA STATUS PERMANEN: Hentikan hitung mundur & ganti teks
         if (window.isTimerStopped) {
-            display.innerText = "∞ INFINITY";
-            display.style.color = "#10b981";
+            timerDisplay.innerText = "∞ INFINITY";
+            timerDisplay.style.color = "#10b981";
             return; 
         }
-
         const dist = expirationTime - new Date().getTime();
-        if (dist <= 0) { 
-            clearInterval(window.timerInterval); 
-            sesi_hancurkan(); 
-            return; 
-        }
-        
-        display.style.color = "#3b82f6";
+        if (dist <= 0) { clearInterval(window.timerInterval); sesi_hancurkan(); return; }
+        timerDisplay.style.color = "#3b82f6";
         const m = Math.floor(dist / 60000), s = Math.floor((dist % 60000) / 1000);
-        display.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        timerDisplay.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }, 1000);
 }
 
 function subscribeRealtime() {
-    client.channel(`room-${roomId}`).on('postgres_changes', { 
-        event: 'UPDATE', schema: 'public', table: 'clipboard', filter: `id=eq.${roomId}` 
+    window.client.channel(`room-${window.roomId}`).on('postgres_changes', { 
+        event: 'UPDATE', schema: 'public', table: 'clipboard', filter: `id=eq.${window.roomId}` 
     }, payload => {
         if (!isTyping) {
             const newContent = payload.new.content || "";
             if (editor.innerText !== newContent) {
                 editor.innerHTML = (newContent.trim() !== "") ? formatLinks(newContent) : "";
+                window.save();
             }
         }
     }).subscribe();
@@ -280,31 +277,26 @@ async function sesi_hancurkan() {
     isExpired = true;
     timerDisplay.innerText = "00:00";
     editor.contentEditable = false;
-    await client.from('clipboard').delete().eq('id', roomId);
-    editor.innerHTML = `
-        <div class="mt-20 text-center flex flex-col items-center">
-            <p class="text-slate-400 text-xs mb-4 italic">Session ended. File deleted permanently.</p>
-            <button onclick="window.location.hash=''; window.location.reload();" class="text-xs font-bold text-blue-500 border border-blue-500 px-6 py-2 rounded-full uppercase">New Clip</button>
-        </div>`;
+    
+    try {
+        const { data: files } = await window.client.storage.from('clip10-images').list(window.roomId);
+        if (files && files.length > 0) {
+            const filesToDelete = files.map(f => `${window.roomId}/${f.name}`);
+            await window.client.storage.from('clip10-images').remove(filesToDelete);
+        }
+    } catch (e) {}
+
+    await window.client.from('clipboard').delete().eq('id', window.roomId);
+    editor.innerHTML = `<div class="mt-20 text-center"><p class="text-slate-400 text-xs mb-4 uppercase">Session Cleared</p><button onclick="window.location.hash=''; window.location.reload();" class="text-xs font-bold text-blue-500 border border-blue-500 px-6 py-2 rounded-full uppercase">New Clip</button></div>`;
 }
 
-function setStat(emoji) {
+window.setStat = function(emoji) {
     indicator.innerText = emoji;
     indicator.style.opacity = "1";
     if (emoji === "✅") setTimeout(() => { indicator.style.opacity = "0.3"; indicator.innerText = "⏎"; }, 1500);
 }
 
-window.addEventListener('hashchange', () => {
-    const newRoomId = decodeURIComponent(location.hash.slice(1));
-    if (newRoomId && newRoomId !== roomId) {
-        roomId = newRoomId;
-        displayId.innerText = roomId;
-        editor.innerHTML = "";
-        const pc = document.getElementById('preview-container');
-        if (pc) pc.innerHTML = "";
-        connectData();
-    }
-});
+window.addEventListener('hashchange', () => { location.reload(); });
 
 setupUI();
 connectData();

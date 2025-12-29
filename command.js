@@ -1,5 +1,5 @@
 /**
- * command.js - Clip10 Advanced Command System
+ * command.js - Clip10 Advanced Command System (Synced & Optimized)
  */
 const Commands = {
     execute(cmd, editorElement) {
@@ -24,6 +24,9 @@ const Commands = {
             case ':start-time':
                 this.toggleTimer(true);
                 return true;
+            case ':image':
+                this.uploadImage(editorElement);
+                return true;
             default:
                 return false;
         }
@@ -32,40 +35,32 @@ const Commands = {
     downloadNote(editor) {
         const text = editor.innerText;
         if (!text || text.trim() === "") {
-            alert("Nothing to save! Editor is empty.");
+            window.setStat("⚠️");
             return;
         }
 
-        // Buat file blob
         const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        
-        // Buat elemen link tersembunyi untuk download
         const a = document.createElement('a');
         const timestamp = new Date().toISOString().slice(0, 10);
-        const filename = `clip10-${roomId}-${timestamp}.txt`;
+        const filename = `clip10-${window.roomId}-${timestamp}.txt`;
         
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
-        
-        // Bersihkan
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        console.log("File downloaded: " + filename);
+        window.setStat("💾");
     },
 
-    // Create a base modal for UI commands
     createModal(id, contentHTML) {
-        // Remove existing if any
         const existing = document.getElementById(id);
         if (existing) existing.remove();
 
         const modal = document.createElement('div');
         modal.id = id;
-        modal.className = "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/10 dark:bg-black/20 backdrop-blur-md animate-fade-in";
+        modal.className = "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in";
         modal.innerHTML = `
             <div class="bg-white dark:bg-[#1c2128] border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative animate-scale-up">
                 <button onclick="this.parentElement.parentElement.remove()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">✕</button>
@@ -76,34 +71,30 @@ const Commands = {
 
     showHelp() {
         const helpHTML = `
-            <h2 class="text-xl font-black mb-4 text-slate-900 dark:text-white">COMMANDS</h2>
+            <h2 class="text-xl font-black mb-4 text-slate-900 dark:text-white uppercase italic">Manual Book</h2>
             <ul class="space-y-3 text-sm font-mono">
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:help</span>
+                    <span class="text-blue-500 font-bold">:help</span>
                     <span class="text-slate-400">Show this menu</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:save</span>
-                    <span class="text-slate-400">Download as .txt</span>
+                    <span class="text-blue-500 font-bold">:image</span>
+                    <span class="text-slate-400">Upload Media</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:show-qr</span>
-                    <span class="text-slate-400">Share via QR Code</span>
+                    <span class="text-blue-500 font-bold">:save</span>
+                    <span class="text-slate-400">Download .txt</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:clear</span>
-                    <span class="text-slate-400">Wipe all text</span>
+                    <span class="text-blue-500 font-bold">:stop-time</span>
+                    <span class="text-slate-400">No expiration</span>
                 </li>
                 <li class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <span class="text-blue-500">:stop-time</span>
-                    <span class="text-slate-400">Lifetime mode</span>
-                </li>
-                <li class="flex justify-between pb-2">
-                    <span class="text-blue-500">:start-time</span>
-                    <span class="text-slate-400">Resume timer</span>
+                    <span class="text-blue-500 font-bold">:clear</span>
+                    <span class="text-slate-400">Nuke everything</span>
                 </li>
             </ul>
-            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-slate-900 dark:bg-white dark:text-black text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">Got it</button>
+            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-blue-500 text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-600 transition-colors">Got it</button>
         `;
         this.createModal('help-modal', helpHTML);
     },
@@ -111,64 +102,84 @@ const Commands = {
     showQRCode() {
         const url = window.location.href;
         const qrHTML = `
-            <h2 class="text-xl font-black mb-4 text-center text-slate-900 dark:text-white uppercase tracking-tighter">Scan to Sync</h2>
+            <h2 class="text-xl font-black mb-4 text-center text-slate-900 dark:text-white uppercase tracking-tighter italic">Sync Device</h2>
             <div class="flex justify-center bg-white p-4 rounded-2xl">
                 <canvas id="qrcode-canvas"></canvas>
             </div>
             <p class="mt-4 text-[10px] font-mono text-center text-slate-400 break-all bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg">${url}</p>
-            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-blue-500 text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">Close</button>
+            <button onclick="this.parentElement.parentElement.remove()" class="w-full mt-6 bg-slate-900 dark:bg-white dark:text-black text-white py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">Close</button>
         `;
         this.createModal('qr-modal', qrHTML);
         setTimeout(() => {
             if (window.QRCode) {
-                QRCode.toCanvas(document.getElementById('qrcode-canvas'), url, { 
-                    width: 240,
-                    margin: 0,
-                    color: { dark: '#0f172a', light: '#ffffff' }
-                });
+                QRCode.toCanvas(document.getElementById('qrcode-canvas'), url, { width: 220, margin: 0 });
             }
         }, 50);
     },
 
-    // Tambahkan ini di dalam objek Commands di command.js
     clearEditor(editor) {
         editor.innerHTML = "";
-        editor.innerText = "";
-        // Paksa simpan konten kosong ke database
-        if (typeof save === 'function') {
-            // Beri sedikit delay agar DOM benar-benar bersih sebelum save
-            setTimeout(() => {
-                save(); 
-                console.log("Editor cleared and synced.");
-            }, 50);
-        }
+        if (typeof window.save === 'function') window.save();
+        window.setStat("🧹");
     },
-
-    // clearEditor(editor) {
-    //     editor.innerHTML = "";
-    //     // Simpan perubahan ke DB (biar terhapus di HP lain juga)
-    //     if (typeof save === 'function') save(); 
-    // },
 
     async toggleTimer(shouldRun) {
         window.isTimerStopped = !shouldRun;
-        const display = document.getElementById('timer');
-        
-        if (!shouldRun) {
-            display.innerText = "∞ INFINITY";
-            display.style.color = "#10b981"; // Hijau
-        } else {
-            display.style.color = "#3b82f6"; // Biru
-        }
-
-        // UPDATE KE SUPABASE: Agar permanen saat reload
+        window.setStat(shouldRun ? "⏳" : "∞");
         try {
-            await client.from('clipboard')
+            await window.client.from('clipboard')
                 .update({ is_permanent: !shouldRun })
-                .eq('id', roomId); 
-            console.log("Status permanent synced to DB");
-        } catch (err) { 
-            console.error("Failed to sync timer status:", err); 
-        }
+                .eq('id', window.roomId); 
+        } catch (err) { console.error(err); }
+    },
+
+    async uploadImage(editor) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            editor.innerHTML = editor.innerHTML.replace(/:image/gi, '').trim();
+
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 95) {
+                    progress += Math.floor(Math.random() * 15) + 5;
+                    if (progress > 95) progress = 95;
+                    window.setStat(progress + "%");
+                }
+            }, 500);
+
+            try {
+                const fileName = file.name.replace(/\s+/g, '-');
+                const filePath = `${window.roomId}/${Date.now()}-${fileName}`;
+
+                const { data, error } = await window.client.storage.from('clip10-images').upload(filePath, file);
+                if (error) throw error;
+
+                const { data: publicURLData } = window.client.storage.from('clip10-images').getPublicUrl(filePath);
+                const publicURL = publicURLData.publicUrl;
+
+                clearInterval(progressInterval);
+                window.setStat("✅");
+
+                // KUNCI: Gunakan publicURL sebagai teks tampilan link
+                const linkHTML = `<br><a href="${publicURL}" target="_blank" rel="noopener" class="text-blue-500 underline break-all font-bold" contenteditable="false">${publicURL}</a><br>&#8203;`;
+                editor.insertAdjacentHTML('beforeend', linkHTML);
+
+                if (window.moveCursorToEnd) window.moveCursorToEnd(editor);
+                if (window.save) window.save();
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                window.setStat("❌");
+            }
+        };
+        input.click();
     }
 };
