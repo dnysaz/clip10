@@ -4,15 +4,15 @@ export default async function handler(req, res) {
 
     const { prompt, key } = req.body;
     
-    // GANTI KE 1.5 FLASH agar tidak kena kuota 0
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    // Model gemini-pro adalah yang paling stabil untuk Free Tier
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${key}`;
 
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: prompt }] }]
+                contents: [{ parts: [{ text: prompt }] }]
             })
         });
 
