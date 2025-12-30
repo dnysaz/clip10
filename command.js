@@ -189,36 +189,6 @@ const Commands = {
             }
         };
         input.click();
-    },
-
-    async callGemini(prompt) {
-        // Mengambil API_KEY dari config.js
-        const API_KEY = CONFIG.API_KEY; 
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-    
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }]
-                })
-            });
-    
-            const data = await response.json();
-            
-            // Cek jika ada error dari Google (misal: API Key salah atau kuota habis)
-            if (data.error) {
-                return `❌ Google AI Error: ${data.error.message}`;
-            }
-            
-            return data.candidates[0].content.parts[0].text;
-        } catch (error) {
-            return "❌ Network Error: Gagal menghubungi AI.";
-        }
     }
 
-    
 };
